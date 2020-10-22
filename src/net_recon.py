@@ -45,8 +45,7 @@ def main():
 
 
 def passive_scan(interface):
-    print("Passive Mode on interface " + interface)
-    sniff(prn=print_arp, iface=interface, filter="arp")
+    sniff(prn=handle_arp_packet, iface=interface, filter="arp")
 
 
 def active_recon(interface):
@@ -71,7 +70,7 @@ def valid_interface(interface):
     return interface in interfaces
 
 
-def print_arp(pkt):
+def handle_arp_packet(pkt):
     arp_packet = pkt[ARP]
     if arp_packet.op == 2:
         ip = arp_packet.psrc
