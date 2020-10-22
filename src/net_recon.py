@@ -1,11 +1,6 @@
 #!/usr/bin/python3
-import getopt
-import sys
-from math import trunc
 
-from netaddr import IPAddress
 from scapy.all import *
-import time
 
 arpDict = {}
 
@@ -36,7 +31,7 @@ def main():
 
             if interface:
                 if passive and active:
-                    print("Please specify one mode")
+                    print("Please specify only one mode")
                 elif passive:
                     passive_scan(interface)
                 elif active:
@@ -65,7 +60,10 @@ def active_recon(interface):
         if not (reply is None):
             online_ips.append(reply.src)
 
-    print("Replies received from : " + str(online_ips))
+    if not online_ips:
+        print("No replies received")
+    else:
+        print("Replies received from : " + str(online_ips)[1:-1])
 
 
 def valid_interface(interface):
