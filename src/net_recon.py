@@ -1,6 +1,13 @@
 #!/usr/bin/python3
 import getopt
 import sys
+from math import trunc
+
+from netaddr import IPAddress
+from scapy.all import *
+import time
+
+arpDict = {}
 
 
 def main():
@@ -19,6 +26,9 @@ def main():
                     help()
                 elif opt in ('-i', "--iface"):
                     interface = arg
+                    if not valid_interface(interface):
+                        print(interface + " is not a known interface")
+                        sys.exit()
                 elif opt in ('-p', "--passive"):
                     passive = True
                 elif opt in ('-a', "--active"):
@@ -30,7 +40,7 @@ def main():
                 elif passive:
                     passive_scan(interface)
                 elif active:
-                    active_scan(interface)
+                    active_recon(interface)
                 else:
                     print("Mode not specified")
             else:
@@ -41,12 +51,44 @@ def main():
 
 def passive_scan(interface):
     print("Passive Mode on interface " + interface)
-    # TODO Scapy sniff -> Passive
+    sniff(prn=print_arp, iface=interface, filter="arp")
 
 
-def active_scan(interface):
-    print("Active Mode on interface " + interface)
-    # TODO Scapy sniff -> Active
+def active_recon(interface):
+    online_ips = []
+    interface_ip = get_if_addr(interface)
+    ip_base = interface_ip[0: (interface_ip.rfind('.'))]
+    ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip_base + ".0/24"), timeout=2, verbose=0)
+    for answer in ans:
+        ip_address = answer[1].psrc
+        reply = sr1(IP(src=interface_ip, dst=ip_address, ttl=64) / ICMP(), timeout=2, verbose=0)
+        if not (reply is None):
+            online_ips.append(reply.src)
+
+    print("Replies received from : " + str(online_ips))
+
+
+def valid_interface(interface):
+    interfaces = get_if_list()
+    return interface in interfaces
+
+
+def print_arp(pkt):
+    arp_packet = pkt[ARP]
+    if arp_packet.op == 2:
+        ip = arp_packet.psrc
+        mac = arp_packet.hwsrc
+        if ip in arpDict:
+            list_of_macs = arpDict[ip]
+            if mac.lower() not in list_of_macs:
+                arpDict[ip].append(mac.lower())
+                #  TODO: What does this mean ->
+                #   If an IP address has already been stored but a different MAC address is seen then the script should
+                #   also store this additional MAC address.
+        else:
+            arpDict[ip] = [mac]
+
+        return f"Source IP: {ip},\t Source MAC: {mac}"
 
 
 def help():
