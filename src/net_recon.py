@@ -1,8 +1,12 @@
 #!/usr/bin/python3
 
 from scapy.all import *
+import concurrent.futures
 
 arpDict = {}
+icmp_replies = []
+INTERFACE_IP = ""
+BASE_IP = ""
 
 
 def main():
@@ -49,20 +53,23 @@ def passive_scan(interface):
 
 
 def active_recon(interface):
-    online_ips = []
-    interface_ip = get_if_addr(interface)
-    ip_base = interface_ip[0: (interface_ip.rfind('.'))]
-    ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip_base + ".0/24"), timeout=2, verbose=0)
-    for answer in ans:
-        ip_address = answer[1].psrc
-        reply = sr1(IP(src=interface_ip, dst=ip_address, ttl=64) / ICMP(), timeout=2, verbose=0)
-        if not (reply is None):
-            online_ips.append(reply.src)
+    global INTERFACE_IP
+    INTERFACE_IP = get_if_addr(interface)
+    global BASE_IP
+    BASE_IP = INTERFACE_IP[0: (INTERFACE_IP.rfind('.') + 1)]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=255) as executor:
+        executor.map(send_icmp_request, range(1, 255))
 
-    if not online_ips:
+    if not icmp_replies:
         print("No replies received")
     else:
-        print("Replies received from : " + str(online_ips)[1:-1])
+        print("Replies received from : " + str(icmp_replies)[1:-1])
+
+
+def send_icmp_request(ip):
+    reply = sr1(IP(src=INTERFACE_IP, dst=BASE_IP + str(ip), ttl=64) / ICMP(), timeout=1, verbose=0)
+    if reply is not None:
+        icmp_replies.append(reply.src)
 
 
 def valid_interface(interface):
@@ -85,7 +92,7 @@ def handle_arp_packet(pkt):
         else:
             arpDict[ip] = [mac]
 
-        return f"Source IP: {ip},\t Source MAC: {mac}"
+        return f"Source IP: {ip}\t Source MAC: {mac}"
 
 
 def help():
