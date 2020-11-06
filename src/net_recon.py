@@ -46,6 +46,29 @@ def passive_scan(interface):
     sniff(prn=filter_packets(arp_dict), iface=interface, filter="arp")
 
 
+# Returns a reference to arp_packets_handler.
+def filter_packets(arp_dict):
+    # Stores the details of an ARP Packet if it's opcode is 2. arp_dict contains all found IP MAC Address pairings. If
+    # a packet comes in with the same IP as a stored IP but a different MAC Address then this new MAC Address is
+    # appended as a value to the IP key.
+    def arp_packet_handler(pkt):
+        if ARP in pkt:
+            arp_packet = pkt[ARP]
+            if arp_packet.op == 2:
+                ip = arp_packet.psrc
+                mac = arp_packet.hwsrc
+                if ip in arp_dict:
+                    list_of_macs = arp_dict[ip]
+                    if mac.lower() not in list_of_macs:
+                        arp_dict[ip].append(mac.lower())
+                else:
+                    arp_dict[ip] = [mac]
+
+                return f"Source IP: {ip}\t Source MAC: {mac}"
+
+    return arp_packet_handler
+
+
 # Gets the IP Address of the interface, extracts the base IP from the interface IP i.e. XXX.YYY.ZZZ. and sends an Echo
 # Request to each possible IP in the /24 Network from 1 to 254 with the base IP i.e XXX.YYY.ZZZ.1 -> XXX.YYY.ZZZ.254.
 def active_recon(interface):
@@ -79,29 +102,6 @@ def send(interface_ip, base_ip, replies_list):
 def is_valid_interface(interface):
     interfaces = get_if_list()
     return interface in interfaces
-
-
-# Returns a reference to arp_packets_handler.
-def filter_packets(arp_dict):
-    # Stores the details of an ARP Packet if it's opcode is 2. arp_dict contains all found IP MAC Address pairings. If
-    # a packet comes in with the same IP as a stored IP but a different MAC Address then this new MAC Address is
-    # appended as a value to the IP key.
-    def arp_packet_handler(pkt):
-        if ARP in pkt:
-            arp_packet = pkt[ARP]
-            if arp_packet.op == 2:
-                ip = arp_packet.psrc
-                mac = arp_packet.hwsrc
-                if ip in arp_dict:
-                    list_of_macs = arp_dict[ip]
-                    if mac.lower() not in list_of_macs:
-                        arp_dict[ip].append(mac.lower())
-                else:
-                    arp_dict[ip] = [mac]
-
-                return f"Source IP: {ip}\t Source MAC: {mac}"
-
-    return arp_packet_handler
 
 
 # Prints out the commands that are allowed to be used in the application
