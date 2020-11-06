@@ -86,7 +86,7 @@ def filter_packets(arp_dict):
     # Stores the details of an ARP Packet if it's opcode is 2. arp_dict contains all found IP MAC Address pairings. If
     # a packet comes in with the same IP as a stored IP but a different MAC Address then this new MAC Address is
     # appended as a value to the IP key.
-    def arp_packets_handler(pkt):
+    def arp_packet_handler(pkt):
         if ARP in pkt:
             arp_packet = pkt[ARP]
             if arp_packet.op == 2:
@@ -101,7 +101,7 @@ def filter_packets(arp_dict):
 
                 return f"Source IP: {ip}\t Source MAC: {mac}"
 
-    return arp_packets_handler
+    return arp_packet_handler
 
 
 # Prints out the commands that are allowed to be used in the application
