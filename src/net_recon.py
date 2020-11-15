@@ -13,7 +13,7 @@ def main():
         handle_arguments(sys.argv[1:])
 
 
-# Handles the command line arguments
+# Verifies that appropriate command line arguments have been provided.
 def handle_arguments(arguments):
     interface = ""
     passive = False
