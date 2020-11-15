@@ -61,7 +61,7 @@ def setup_passive_scan_reminder_thread():
 # Prints a message every minute reminding the user how to terminate the scan
 def print_reminder():
     while True:
-        print("**You can use Ctrl-C at any time to terminate passive scan**")
+        print("**You can use Ctrl-C at any time to terminate the passive scan**")
         time.sleep(60)
 
 
