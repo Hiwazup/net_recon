@@ -83,6 +83,8 @@ def active_recon(interface):
     interface_ip = get_if_addr(interface)
     base_ip = interface_ip[0: (interface_ip.rfind('.') + 1)]
     replies_list = []
+
+    # Calls the send function over 25 threads. The range option will provide the final octet value for the ping request.
     with concurrent.futures.ThreadPoolExecutor(max_workers=25) as executor:
         executor.map(send(interface_ip, base_ip, replies_list), range(1, 255))
 
@@ -95,11 +97,11 @@ def active_recon(interface):
 # Returns a reference to send_icmp_request
 def send(interface_ip, base_ip, replies_list):
     # Sends an Echo Request to the Networks base IP concatenated with a particular IP for the final octet.
-    # The interface_ip is set in the Echo Request as the source. If an Echo Reply is not received in 1 second then the
+    # The interface_ip is set in the Echo Request as the source. If an Echo Reply is not received in 2 seconds then the
     # request times out.
     def send_icmp_request(ip):
         destination = base_ip + str(ip)
-        reply = sr1(IP(src=interface_ip, dst=destination, ttl=64) / ICMP(), timeout=1)
+        reply = sr1(IP(src=interface_ip, dst=destination, ttl=64) / ICMP(), timeout=2)
         if reply is not None:
             replies_list.append(reply.src)
 
@@ -122,8 +124,7 @@ def print_reminder():
 
 # Returns True if the provided interface is in the if list. False otherwise.
 def is_valid_interface(interface):
-    interfaces = get_if_list()
-    return interface in interfaces
+    return interface in get_if_list()
 
 
 # Prints out the commands that are allowed to be used in the application
