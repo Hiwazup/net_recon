@@ -3,6 +3,8 @@
 from scapy.all import *
 import concurrent.futures
 
+conf.verb = 0
+
 
 # Main function that ensures enough command line arguments have been provided.
 def main():
@@ -44,25 +46,11 @@ def handle_arguments(arguments):
         print("Interface not specified")
 
 
-# Scans for arp packets on the specified interface and sends each packet to filter_packets
+# Scans for arp packets on the specified interface and sends each packet to filter_packets.
 def passive_scan(interface):
     arp_dict = {}
     setup_passive_scan_reminder_thread()
     sniff(prn=filter_packets(arp_dict), iface=interface, filter="arp")
-
-
-# Sets up the reminder thread
-def setup_passive_scan_reminder_thread():
-    reminder_thread = threading.Thread(target=print_reminder, name="Passive Scan Reminder Thread")
-    reminder_thread.daemon = True
-    reminder_thread.start()
-
-
-# Prints a message every minute reminding the user how to terminate the scan
-def print_reminder():
-    while True:
-        print("**You can use Ctrl-C at any time to terminate the passive scan**")
-        time.sleep(60)
 
 
 # Returns a reference to arp_packet_handler.
@@ -91,16 +79,17 @@ def filter_packets(arp_dict):
 # Gets the IP Address of the interface, extracts the base IP from the interface IP i.e. XXX.YYY.ZZZ. and sends an Echo
 # Request to each possible IP in the /24 Network from 1 to 254 with the base IP i.e XXX.YYY.ZZZ.1 -> XXX.YYY.ZZZ.254.
 def active_recon(interface):
+    print("Executing active recon. Please wait...")
     interface_ip = get_if_addr(interface)
     base_ip = interface_ip[0: (interface_ip.rfind('.') + 1)]
     replies_list = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=25) as executor:
         executor.map(send(interface_ip, base_ip, replies_list), range(1, 255))
 
     if not replies_list:
         print("No replies received")
     else:
-        print("Replies received from : " + str(replies_list)[1:-1])
+        print("Replies received from : ", replies_list)
 
 
 # Returns a reference to send_icmp_request
@@ -110,11 +99,25 @@ def send(interface_ip, base_ip, replies_list):
     # request times out.
     def send_icmp_request(ip):
         destination = base_ip + str(ip)
-        reply = sr1(IP(src=interface_ip, dst=destination, ttl=64) / ICMP(), timeout=1, verbose=0)
+        reply = sr1(IP(src=interface_ip, dst=destination, ttl=64) / ICMP(), timeout=1)
         if reply is not None:
             replies_list.append(reply.src)
 
     return send_icmp_request
+
+
+# Sets up the reminder thread.
+def setup_passive_scan_reminder_thread():
+    reminder_thread = threading.Thread(target=print_reminder, name="Passive Scan Reminder Thread")
+    reminder_thread.daemon = True
+    reminder_thread.start()
+
+
+# Prints a message every minute reminding the user how to terminate the scan.
+def print_reminder():
+    while True:
+        print("**You can use Ctrl-C at any time to terminate the passive scan**")
+        time.sleep(60)
 
 
 # Returns True if the provided interface is in the if list. False otherwise.
