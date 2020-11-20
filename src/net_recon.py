@@ -9,41 +9,56 @@ conf.verb = 0
 # Main function that ensures enough command line arguments have been provided.
 def main():
     number_of_arguments = len(sys.argv) - 1
-    if number_of_arguments == 0 or number_of_arguments > 3:
-        help()
+    if number_of_arguments == 3:
+        validate_and_run_operation(sys.argv[1:])
     else:
-        handle_arguments(sys.argv[1:])
+        help("Incorrect number of arguments provided")
 
 
-# Verifies that appropriate command line arguments have been provided.
-def handle_arguments(arguments):
-    interface = ""
-    passive = False
-    active = False
-    for argument in arguments:
-        if argument == "-i" or argument == "--iface":
-            pass
-        elif argument == "-p" or argument == "--passive":
-            passive = True
-        elif argument == "-a" or argument == "--active":
-            active = True
-        else:
-            interface = argument
-            if not is_valid_interface(interface):
-                print(argument + " is not a known interface")
-                exit()
+# Validates the provided command line arguments and performs the desired operation.
+def validate_and_run_operation(arguments):
+    if ("-p" in arguments and "--passive" in arguments) or ("-a" in arguments and "--active" in arguments) or \
+            ("-i" in arguments and "--iface" in arguments):
+        help("Duplicate arguments provided")
 
-    if interface:
-        if passive and active:
-            print("Please specify only one mode")
-        elif passive:
-            passive_scan(interface)
-        elif active:
-            active_recon(interface)
-        else:
-            print("Mode not specified")
+    passive = ("-p" in arguments or "--passive" in arguments)
+    active = ("-a" in arguments or "--active" in arguments)
+    if passive and active:
+        help("Please specify only one mode")
+
+    interface = get_interface(arguments)
+
+    if passive:
+        passive_scan(interface)
+    elif active:
+        active_recon(interface)
     else:
-        print("Interface not specified")
+        help("Invalid arguments specified")
+
+
+# Gets and verifies the interface provided
+def get_interface(arguments):
+    index = 0
+    missing_interface_message = "Missing interface"
+
+    if "-i" in arguments:
+        index = arguments.index("-i")
+    elif "--iface" in arguments:
+        index = arguments.index("--iface")
+    else:
+        help("Missing interface option")
+
+    if index >= (len(arguments) - 1):
+        help(missing_interface_message)
+
+    interface = arguments[index + 1]
+    if "-" in interface:
+        help(missing_interface_message)
+    elif not is_valid_interface(interface):
+        print(interface + " is not a known interface")
+        exit()
+
+    return interface
 
 
 # Scans for arp packets on the specified interface and sends each packet to filter_packets.
@@ -80,12 +95,13 @@ def filter_packets(arp_dict):
                 mac = arp_packet.hwsrc
                 if ip in arp_dict:
                     list_of_macs = arp_dict[ip]
-                    if mac.lower() not in list_of_macs:
-                        arp_dict[ip].append(mac.lower())
+                    mac_lowercase = mac.lower()
+                    if mac_lowercase not in list_of_macs:
+                        arp_dict[ip].append(mac_lowercase)
                 else:
                     arp_dict[ip] = [mac]
 
-                print(ip, *arp_dict[ip], sep='\t')
+                print(ip + "\t" + ", ".join(arp_dict[ip]))
 
     return arp_packet_handler
 
@@ -105,17 +121,17 @@ def active_recon(interface):
     if not replies_list:
         print("No replies received")
     else:
-        print("Replies received from : ", replies_list)
+        print("Replies received from : ", ", ".join(replies_list))
 
 
 # Returns a reference to send_icmp_request
 def send(interface_ip, base_ip, replies_list):
     # Sends an Echo Request to the Networks base IP concatenated with a particular IP for the final octet.
-    # The interface_ip is set in the Echo Request as the source. If an Echo Reply is not received in 2 seconds then the
+    # The interface_ip is set in the Echo Request as the source. If an Echo Reply is not received in 4 seconds then the
     # request times out.
     def send_icmp_request(ip):
         destination = base_ip + str(ip)
-        reply = sr1(IP(src=interface_ip, dst=destination, ttl=64) / ICMP(), timeout=2)
+        reply = sr1(IP(src=interface_ip, dst=destination, ttl=64) / ICMP(), timeout=4)
         if reply is not None:
             replies_list.append(reply.src)
 
@@ -128,8 +144,16 @@ def is_valid_interface(interface):
 
 
 # Prints out the commands that are allowed to be used in the application
-def help():
-    print("-i or --iface for network interface name\n-p or --passive for passive mode\n-a or --active for active mode")
+def help(error_message):
+    print(error_message + "\n")
+    print("Usage")
+    print("\tnet_recon --iface <interface>")
+    print("\t\t--active")
+    print("\t\t--passive")
+    print("Arguments")
+    print("\t-i or --iface for network interface name")
+    print("\t-p or --passive for passive mode")
+    print("\t-a or --active for active mode")
     exit()
 
 
