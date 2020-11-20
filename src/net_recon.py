@@ -53,6 +53,20 @@ def passive_scan(interface):
     sniff(prn=filter_packets(arp_dict), iface=interface, filter="arp")
 
 
+# Sets up the reminder thread.
+def setup_passive_scan_reminder_thread():
+    reminder_thread = threading.Thread(target=print_passive_scan_reminder, name="Passive Scan Reminder Thread")
+    reminder_thread.daemon = True
+    reminder_thread.start()
+
+
+# Prints a message every minute reminding the user how to terminate the scan.
+def print_passive_scan_reminder():
+    while True:
+        print("**You can use Ctrl-C at any time to terminate the passive scan**")
+        time.sleep(60)
+
+
 # Returns a reference to arp_packet_handler.
 def filter_packets(arp_dict):
     # Stores the details of an ARP Packet if it's opcode is 2. arp_dict contains all found IP MAC Address pairings. If
@@ -106,20 +120,6 @@ def send(interface_ip, base_ip, replies_list):
             replies_list.append(reply.src)
 
     return send_icmp_request
-
-
-# Sets up the reminder thread.
-def setup_passive_scan_reminder_thread():
-    reminder_thread = threading.Thread(target=print_reminder, name="Passive Scan Reminder Thread")
-    reminder_thread.daemon = True
-    reminder_thread.start()
-
-
-# Prints a message every minute reminding the user how to terminate the scan.
-def print_reminder():
-    while True:
-        print("**You can use Ctrl-C at any time to terminate the passive scan**")
-        time.sleep(60)
 
 
 # Returns True if the provided interface is in the if list. False otherwise.
